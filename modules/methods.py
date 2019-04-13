@@ -10,7 +10,11 @@ from collections import Counter
 
 def convert_atom(atom):
     if isinstance(atom, list):
-        if atom[1] == "hbo":
+        # additional convertion for external atom types
+        if len(atom) == 1:
+            return tuple(atom)
+
+        elif atom[1] == "hbo":
             return "{}~{}".format(atom[0], atom[2])
         elif atom[1] == "plain":
             return atom[0]
@@ -31,6 +35,8 @@ def convert_atom(atom):
         elif len(s_atom) == 1:
             return [atom, "plain", "*"]
 
+    elif isinstance(atom, tuple):
+        return list(atom)
 
 def convert_bond(bond):
     if isinstance(bond, list):

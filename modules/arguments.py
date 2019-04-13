@@ -28,7 +28,7 @@ def load_arguments():
     parser.add_argument("--validation", help="Adjust how many percent of set of molecules should be used for validation.", default=10, type=int)  # only for my usage
     parser.add_argument("--atomic_types_pattern",
                         help="For mode set_of_molecules_info and parameterization. Define atomic types for statistics",
-                        choices=("plain", "hbo", "hybrid", "partners", "substruct"), default="hbo")
+                        choices=("plain", "hbo", "external_atom_type"), default="hbo")
     parser.add_argument("--num_of_molecules", help="Only these number of molecules will be loaded.", type=int)
     parser.add_argument("-f", "--rewriting_with_force", action="store_true",
                         help="All existed files with the same names like your outputs will be replaced.")

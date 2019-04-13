@@ -47,7 +47,10 @@ class Molecule:
         self.atoms = []
         atoms_high_bonds = create_atom_high_bond(self.num_of_atoms, bonds, atomic_symbols)
         for index, (cor, atomic_symbol, symbol_high_bond) in enumerate(zip(atomic_coordinates, atomic_symbols, atoms_high_bonds)):
-            self.atoms.append(Atom(cor, atomic_symbol, symbol_high_bond, index, classifier, mol_atom_types[index]))
+            external_atom_type = None
+            if classifier == 'external_atom_type':
+                external_atom_type = mol_atom_types[index]
+            self.atoms.append(Atom(cor, atomic_symbol, symbol_high_bond, index, classifier, external_atom_type))
         self.bonds = []
         for (a1, a2), type in bonds:
             self.bonds.append(Bond(self.atoms[a1], self.atoms[a2], type))
