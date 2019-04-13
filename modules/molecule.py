@@ -41,15 +41,13 @@ def create_atom_high_bond(num_of_atoms, bonds, atomic_symbols):
 
 
 class Molecule:
-    def __init__(self, name, num_of_atoms, atomic_symbols, atomic_coordinates, bonds):
+    def __init__(self, name, num_of_atoms, atomic_symbols, atomic_coordinates, bonds, classifier, mol_atom_types):
         self.name = name
         self.num_of_atoms = num_of_atoms
         self.atoms = []
         atoms_high_bonds = create_atom_high_bond(self.num_of_atoms, bonds, atomic_symbols)
-        # atoms_high_bonds_bonded_atoms = create_atom_bonded_atoms(atoms_high_bonds, bonds, ".")
-        # atoms_bonded_atoms = create_atom_bonded_atoms(atomic_symbols, bonds, "#")
         for index, (cor, atomic_symbol, symbol_high_bond) in enumerate(zip(atomic_coordinates, atomic_symbols, atoms_high_bonds)):
-            self.atoms.append(Atom(cor, atomic_symbol, symbol_high_bond, index))
+            self.atoms.append(Atom(cor, atomic_symbol, symbol_high_bond, index, classifier, mol_atom_types[index]))
         self.bonds = []
         for (a1, a2), type in bonds:
             self.bonds.append(Bond(self.atoms[a1], self.atoms[a2], type))

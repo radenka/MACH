@@ -167,7 +167,9 @@ class Parameterization:
             pass
             exit(colored("ERROR! There must be more then 1 molecules for parameterization!\n", "red"))
         num_of_molecules_validation = int((1-validation/100) * num_of_molecules)
-        set_of_molecules = SetOfMolecules(sdf, num_of_molecules_to=num_of_molecules_validation)
+        set_of_molecules = SetOfMolecules(sdf, atomic_types_pattern, num_of_molecules_to=num_of_molecules_validation, )
+        print('End of program, exit in "parameterization.py" after molecule set creation.')
+        exit(1)
         method = getattr(import_module("modules.methods"), method)()
         method.load_parameters(parameters, set_of_molecules, "parameterization", atomic_types_pattern=atomic_types_pattern)
         set_of_molecules.create_method_data(method)

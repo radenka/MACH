@@ -5,11 +5,37 @@ from termcolor import colored
 from collections import Counter
 from tabulate import tabulate
 from numpy import array, float32, int64, concatenate, random
+from .attyc import classify_atoms  # works fine
+import os
+# import attyc doesn't work, but works in turtle.py in atom-types-bc-thesis. Why?
+
 
 def sort(a, b):
     if a > b:
         return b-1, a-1
     return a-1, b-1
+
+
+def get_attyc_atom_types(sdfile, classifier):
+    # get name of file, 'file' argument is relative path of sdf file
+    # classifier is single word
+    sdfile = os.path.basename(sdfile)
+    current_dir = os.path.dirname(__file__)
+    # print(os.path.exists(os.path.join(current_dir, 'ATTYC_outputs')))    exists
+
+    atom_types = []
+    atom_types_file = None
+    for file in os.listdir(os.path.join(current_dir, 'ATTYC_outputs')):
+        sdfname, file_classifier = file.split('SDF_')
+        if sdfname == sdfile[:-4] and file_classifier[:-4] == classifier:
+            atom_types_file = file
+
+    with open(os.path.join(current_dir, 'ATTYC_outputs', atom_types_file)) as f:
+        for line in f.readlines():
+            line = line.strip().split(',')
+            atom_types.append(line)
+    return atom_types
+
 
 class ArciSet:
     def __init__(self, file):
@@ -27,9 +53,15 @@ class ArciSet:
 
 
 class SetOfMolecules(ArciSet):
-    def __init__(self, file, num_of_molecules_from=None, num_of_molecules_to=None):
+    def __init__(self, file, classifier, num_of_molecules_from=None, num_of_molecules_to=None):
         print("Loading of set of molecules from {}...".format(file))
         super().__init__(file)
+
+        classify_atoms(file, f'attyc.{classifier}', file_output=True)
+        # call function to get atom types from created file, returns nested lists of lists of strings
+        #   - get path of 'ATTYC_outputs', open attyc_output file
+        attyc_atom_types = get_attyc_atom_types(file, classifier)
+
         with open(file, "r") as sdf:
             molecules_data = sdf.read()
         if molecules_data[-5:].strip() != "$$$$":
@@ -46,10 +78,10 @@ class SetOfMolecules(ArciSet):
             self.num_of_molecules_from = 0
         else:
             self.num_of_molecules_from = num_of_molecules_from
-        for molecule_data in molecules_data[self.num_of_molecules_from:self.num_of_molecules_to]:
+        for molecule_data, mol_atom_types in zip(molecules_data[self.num_of_molecules_from:self.num_of_molecules_to], attyc_atom_types):
             type_of_sdf_record = molecule_data[3][-5:]
             if type_of_sdf_record == "V2000":
-                self.load_sdf_v2000(molecule_data)
+                self.load_sdf_v2000(molecule_data, classifier, mol_atom_types)
             elif type_of_sdf_record == "V3000":
                 self.load_sdf_v3000(molecule_data)
             else:
@@ -57,7 +89,7 @@ class SetOfMolecules(ArciSet):
         self.num_of_atoms = sum([len(molecule) for molecule in self.molecules])
         print(colored("ok\n", "green"))
 
-    def load_sdf_v2000(self, molecular_data):
+    def load_sdf_v2000(self, molecular_data, classifier, mol_atom_types):
         name = molecular_data[0]
         info_line = molecular_data[3]
         num_of_atoms = int(info_line[:3])
@@ -69,7 +101,7 @@ class SetOfMolecules(ArciSet):
             atomic_symbols.append(line[3])
         for bond_line in molecular_data[num_of_atoms + 4: num_of_atoms + num_of_bonds + 4]:
             bonds.append((sort(int(bond_line[:3]), int(bond_line[3:6])), int(bond_line[8])))
-        self.molecules.append(Molecule(name, num_of_atoms, atomic_symbols, atomic_coordinates, bonds))
+        self.molecules.append(Molecule(name, num_of_atoms, atomic_symbols, atomic_coordinates, bonds, classifier, mol_atom_types))
 
     def load_sdf_v3000(self, molecular_data):
         name = molecular_data[0]
