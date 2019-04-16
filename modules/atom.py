@@ -6,9 +6,7 @@ class Atom:
         self.index = index
         # creates attribute self.external_atom_type
         if external_atom_type:
-            at_type = []
-            at_type.append(external_atom_type)
-            setattr(self, classifier, at_type)
+            setattr(self, classifier, (external_atom_type, ))
 
     def get_representation(self, pattern):
         # better to change to 'return getattr(self, pattern)'?

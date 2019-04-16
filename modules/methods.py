@@ -18,25 +18,17 @@ def convert_atom(atom):
             return "{}~{}".format(atom[0], atom[2])
         elif atom[1] == "plain":
             return atom[0]
-        #elif atom[1] == "aba":
-        #    return "{}~{}.{}".format(atom[0], atom[2], atom[3])
-        #elif atom[1] == "abaa":
-        #    return "{}#{}".format(atom[0], atom[2])
     elif isinstance(atom, str):
-        #if "." in atom:
-        #    sp = atom.split(".")
-        #    return [atom.split("~")[0], "aba", sp[0].split("~")[1], sp[1]]
-        #elif "_" in atom:
-        #    sp = atom.split("_")
-        #    return [sp[0], "abaa", sp[1]]
+        return (atom,)
         s_atom = atom.split("~")
         if len(s_atom) == 2:
             return [s_atom[0], "hbo", s_atom[1]]
         elif len(s_atom) == 1:
             return [atom, "plain", "*"]
 
+
     elif isinstance(atom, tuple):
-        return list(atom)
+        return atom[0]
 
 def convert_bond(bond):
     if isinstance(bond, list):

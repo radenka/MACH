@@ -169,12 +169,11 @@ class Parameterization:
         num_of_molecules_validation = int((1-validation/100) * num_of_molecules)
         set_of_molecules = SetOfMolecules(sdf, atomic_types_pattern, num_of_molecules_to=num_of_molecules_validation, )
         print('End of program, exit in "parameterization.py" after molecule set creation.')
-        exit(1)
         method = getattr(import_module("modules.methods"), method)()
         method.load_parameters(parameters, set_of_molecules, "parameterization", atomic_types_pattern=atomic_types_pattern)
         set_of_molecules.create_method_data(method)
         set_of_molecules.add_ref_charges(ref_charges, len(method.atomic_types))
-        set_of_molecules_validation = SetOfMolecules(sdf, num_of_molecules_from=num_of_molecules_validation, num_of_molecules_to=num_of_molecules)
+        set_of_molecules_validation = SetOfMolecules(sdf, atomic_types_pattern, num_of_molecules_from=num_of_molecules_validation, num_of_molecules_to=num_of_molecules)
         try:
             set_of_molecules_validation.create_method_data(method)
         except ValueError:
@@ -182,180 +181,25 @@ class Parameterization:
         set_of_molecules_validation.add_ref_charges(ref_charges, len(method.atomic_types))
 
         print("Parameterizating...")
-        if optimization_method == "local_minimization":
-            _, final_parameters = local_minimization(method.parameters_values, minimization_method, method, set_of_molecules)
-        elif optimization_method == "guided_minimization":
-            """
-            #num_of_samples_heuristic
-            num_of_samples = 1000
-            data = ["{}_{}".format(str(method), len(method.parameters_values))]
-            for _ in range(10):
-                rmsds = 0
-                repete = 3
-                for x in range(repete):
-                    samples = lhsclassic(len(method.parameters_values), num_of_samples, *method.bounds[0])
-                    partial_f = partial(calculate_charges_and_statistical_data, method=method,
-                                        set_of_molecules=SubsetOfMolecules(set_of_molecules, method, subset_heuristic))
-                    with Pool(cpu) as pool:
-                        candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=1000))
-                    mmm = min(candidates_rmsd)
-                    rmsds += mmm
-                data.append((rmsds / repete, num_of_samples))
-                print(num_of_samples, rmsds / repete, num_of_samples)
-                num_of_samples += 1000
-            mkdir(data_dir)
-            with open(path.join(data_dir, "num_of_sampes_{}_{}.txt".format(str(method), len(method.parameters_values))), "w") as file:
-                file.write(str(data))
-            from sys import exit ; exit()
-            """
-            """
-            # subset heuristic
-            set_of_molecules = SetOfMolecules(sdf)
-            method.load_parameters(parameters, set_of_molecules, "parameterization", atomic_types_pattern=atomic_types_pattern)
-            set_of_molecules.create_method_data(method)
-            set_of_molecules.add_ref_charges(ref_charges, len(method.atomic_types))
 
+        num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
+        samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
+        partial_f = partial(calculate_charges_and_statistical_data, method=method, set_of_molecules=set_of_molecules if subset_heuristic == 0 else SubsetOfMolecules(set_of_molecules, method, subset_heuristic))
+        with Pool(cpu) as pool:
+            candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
+        # přepsat number of candidates!!!!!!!!!!!!!!
+        main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(30, candidates_rmsd)))]
 
-            data = []
-            num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
-            samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
-            for num_of_subset_molecules in [5, 10, 25, 50, 100]:
-                from time import time
-                start = time()
-                subset_of_molecules = SubsetOfMolecules(set_of_molecules, method, num_of_subset_molecules)
-                partial_f = partial(calculate_charges_and_statistical_data, method=method, set_of_molecules=subset_of_molecules)
-                with Pool(cpu) as pool:
-                    candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-                main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(4 if cpu < 3 else cpu, candidates_rmsd)))]
-
-
-
-                partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=SubsetOfMolecules(set_of_molecules, method, subset_heuristic * 3))
-                with Pool(cpu) as pool:
-                    main_candidates = [result[1] for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-
-
-                partial_f = partial(local_minimization, minimization_method=minimization_method, method=method,
-                                    set_of_molecules=set_of_molecules)
-                with Pool(cpu) as pool:
-                    best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-                best_candidates.sort(key=itemgetter(0))
-
-
-                data.append((len(subset_of_molecules), time()- start, best_candidates[0][0]))
-            start = time()
-            partial_f = partial(calculate_charges_and_statistical_data, method=method, set_of_molecules=set_of_molecules)
+        if subset_heuristic and method in ["EEM", "SFKEEM", "ACKS2", "QEq"]:
+            partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=SubsetOfMolecules(set_of_molecules, method, subset_heuristic*3))
             with Pool(cpu) as pool:
-                candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-            main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(4, candidates_rmsd)))]
-            partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=set_of_molecules)
-            with Pool(cpu) as pool:
-                best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-            best_candidates.sort(key=itemgetter(0))
-            data.append((len(set_of_molecules.molecules), time() - start, best_candidates[0][0]))
-            mkdir(data_dir)
-            with open(path.join(data_dir, "num_of_subset_mol_final_{}_{}.txt".format(str(method), path.basename(sdf).split(".")[0])), "w") as file:
-                file.write(str(data))
-            from sys import exit ; exit()
+                main_candidates = [result[1] for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
 
-            """
-            # minimizations
-            """
-            data = []
-            for x in range(3):
-                num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
-                samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
-                subset_of_molecules = SubsetOfMolecules(set_of_molecules, method, subset_heuristic)
-                partial_f = partial(calculate_charges_and_statistical_data, method=method,set_of_molecules=subset_of_molecules)
-                with Pool(cpu) as pool:
-                    candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-                main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(3 if cpu < 3 else cpu, candidates_rmsd)))]
-                from time import time
-                for minimization_method in ["PRAXIS","NEWUOA_BOUND","NELDERMEAD", "BOBYQA", "SBPLX", "COBYLA_NLOPT","Nelder-Mead", "Powell", "CG", "BFGS", "L-BFGS-B", "TNC", "COBYLA", "SLSQP"]:
-                    try:
-                        start = time()
-                        partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=subset_of_molecules)
-                        with Pool(cpu) as pool:
-                            best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-                        best_candidates.sort(key=itemgetter(0))
-                        data.append((minimization_method, time() - start, best_candidates[0][0]))
-                    except Exception as e:
-                        data.append((minimization_method, "error", e))
-
-            mkdir(data_dir)
-            with open(path.join(data_dir, "subset_minimizations_{}_{}.txt".format(str(method), path.basename(sdf).split(".")[0])), "w") as file:
-                file.write(str(data))
-            from sys import exit;  exit()
-
-            """
-            # minimizations second
-            """
-            data = []
-            for x in range(3):
-                num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
-                samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
-                subset_of_molecules = SubsetOfMolecules(set_of_molecules, method, subset_heuristic)
-                partial_f = partial(calculate_charges_and_statistical_data, method=method,set_of_molecules=subset_of_molecules)
-                with Pool(cpu) as pool:
-                    candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-                main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(3 if cpu < 3 else cpu, candidates_rmsd)))]
-                from time import time
-                for minimization_method in ["BFGS", "L-BFGS-B","SLSQP"]:
-                    try:
-                        start = time()
-                        partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=set_of_molecules)
-                        with Pool(cpu) as pool:
-                            best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-                        best_candidates.sort(key=itemgetter(0))
-                        data.append((minimization_method, time() - start, best_candidates[0][0]))
-                    except Exception as e:
-                        data.append((minimization_method, "error", e))
-
-            mkdir(data_dir)
-            with open(path.join(data_dir, "subset_minimizations_second_{}_{}.txt".format(str(method), path.basename(sdf).split(".")[0])), "w") as file:
-                file.write(str(data))
-            from sys import exit;  exit()
-
-            
-            """
-
-            # # how many best candidates?
-            # num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
-            # samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
-            # partial_f = partial(calculate_charges_and_statistical_data, method=method, set_of_molecules=SubsetOfMolecules(set_of_molecules, method, 5))
-            # with Pool(cpu) as pool:
-            #     candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-            # main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(100, candidates_rmsd)))]
-            # partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=set_of_molecules)
-            # with Pool(cpu) as pool:
-            #     best_candidates = [result[0] for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-            # mkdir(data_dir)
-            # with open(path.join(data_dir, "candidates_final_{}_{}.txt".format(str(method), path.basename(sdf).split(".")[0])), "w") as file:
-            #     file.write(str(best_candidates))
-            #     file.write("\n"+str((date.now() - start_time)*cpu)[:-7])
-            # from sys import exit
-            # exit()
-
-
-            num_of_samples_modif, chunksize = modify_num_of_samples(num_of_samples, cpu)
-            samples = lhsclassic(len(method.parameters_values), num_of_samples_modif, *method.bounds[0])
-            partial_f = partial(calculate_charges_and_statistical_data, method=method, set_of_molecules=set_of_molecules if subset_heuristic == 0 else SubsetOfMolecules(set_of_molecules, method, subset_heuristic))
-            with Pool(cpu) as pool:
-                candidates_rmsd = list(pool.imap(partial_f, samples, chunksize=chunksize))
-            # přepsat number of candidates!!!!!!!!!!!!!!
-            main_candidates = samples[list(map(candidates_rmsd.index, heapq.nsmallest(1, candidates_rmsd)))]
-
-            if subset_heuristic and method in ["EEM", "SFKEEM", "ACKS2", "QEq"]:
-                partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=SubsetOfMolecules(set_of_molecules, method, subset_heuristic*3))
-                with Pool(cpu) as pool:
-                    main_candidates = [result[1] for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-
-            partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=set_of_molecules)
-            with Pool(cpu) as pool:
-                best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
-            best_candidates.sort(key=itemgetter(0))
-
-            final_parameters = best_candidates[0][1]
+        partial_f = partial(local_minimization, minimization_method=minimization_method, method=method, set_of_molecules=set_of_molecules)
+        with Pool(cpu) as pool:
+            best_candidates = [result for result in pool.map(partial_f, [parameters for parameters in main_candidates])]
+        best_candidates.sort(key=itemgetter(0))
+        final_parameters = best_candidates[0][1]
         method.new_parameters(final_parameters)
 
 

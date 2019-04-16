@@ -92,17 +92,17 @@ class Comparison:
         molecules_statistical_data_validaton = [calculate_statistics(ref_molecule.charges, molecule.charges) for ref_molecule, molecule in zip(self.ref_set_of_molecules_validation, self.set_of_molecules_validation.molecules)]
         molecules_num_of_atoms_validation = [molecule[4] for molecule in molecules_statistical_data_validaton]
         self.molecules_data_validation = [round(item, 4) for item in [mean([x[y] for x in molecules_statistical_data_validaton]) for y in range(4)] + [self.ref_set_of_molecules_validation.num_of_molecules_to - self.ref_set_of_molecules_validation.num_of_molecules_from, min(molecules_num_of_atoms_validation), max(molecules_num_of_atoms_validation), mean(molecules_num_of_atoms_validation)]]
-        with open(path.join(self.data_dir, "molecules.log"), "w") as molecule_logs_file:
-            molecule_logs_file.write(
-                "name, num. of atoms, atomic types, rmsd, max. deviation, av. deviation, pearson**2\n")
-            writer = csv.writer(molecule_logs_file)
-            writer.writerows(sorted([(molecule.name, num_of_atoms, ", ".join(
-                sorted(set(molecule.atoms_representation(self.parameterization.atomic_types_pattern if self.parameterization else None)))),
-                                      round(molecule_data[0], 4), round(molecule_data[1], 4),
-                                      round(molecule_data[2], 4), round(molecule_data[3], 4)) for
-                                     molecule, num_of_atoms, molecule_data in
-                                     zip(self.ref_set_of_molecules, molecules_num_of_atoms,
-                                         molecules_statistical_data)], key=itemgetter(3)))
+        # with open(path.join(self.data_dir, "molecules.log"), "w") as molecule_logs_file:
+        #     molecule_logs_file.write(
+        #         "name, num. of atoms, atomic types, rmsd, max. deviation, av. deviation, pearson**2\n")
+        #     writer = csv.writer(molecule_logs_file)
+        #     writer.writerows(sorted([(molecule.name, num_of_atoms, ", ".join(
+        #         sorted(set(molecule.atoms_representation(self.parameterization.atomic_types_pattern if self.parameterization else None)))),
+        #                               round(molecule_data[0], 4), round(molecule_data[1], 4),
+        #                               round(molecule_data[2], 4), round(molecule_data[3], 4)) for
+        #                              molecule, num_of_atoms, molecule_data in
+        #                              zip(self.ref_set_of_molecules, molecules_num_of_atoms,
+        #                                  molecules_statistical_data)], key=itemgetter(3)))
         if self.parameterization:
             counter_bonds = Counter()
             for molecule in self.ref_set_of_molecules:
@@ -136,6 +136,9 @@ class Comparison:
                 color = Category20[20][color_numbers[atomic_symbol]]
             except KeyError:
                 color = Category20[20][index % 20]
+
+            if isinstance(atomic_symbol, tuple):
+                atomic_symbol = atomic_symbol[0]
             correlation_graph_parameterization.circle(ref_charges, charges, size=6, legend=atomic_symbol, fill_color=color, line_color=color)
         correlation_graph_parameterization.legend.location = "top_left"
         correlation_graph_parameterization.legend.click_policy = "hide"
@@ -164,6 +167,10 @@ class Comparison:
             zipped_charges = list(zip(self.ref_set_of_molecules_validation.atomic_types_charges.items(),
                                       self.set_of_molecules_validation.atomic_types_charges.items()))
             for index, ((atomic_symbol, ref_charges), (_, charges)) in enumerate(zipped_charges):
+
+                if isinstance(atomic_symbol, tuple):
+                    atomic_symbol = atomic_symbol[0]
+
                 try:
                     color = Category20[20][color_numbers[atomic_symbol]]
                 except KeyError:
