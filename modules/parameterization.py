@@ -152,7 +152,7 @@ def lhsclassic(n, samples, high_bound, low_bound):
 
 
 class Parameterization:
-    def __init__(self, sdf, ref_charges, parameters, method, optimization_method, minimization_method, atomic_types_pattern, num_of_molecules, num_of_samples, subset_heuristic, validation, cpu, data_dir, rewriting_with_force, git_hash=None):
+    def __init__(self, sdf, ref_charges, parameters, method, optimization_method, minimization_method, atomic_types_pattern, num_of_molecules, num_of_samples, subset_heuristic, validation, cpu, data_dir, rewriting_with_force, ext_file=None, git_hash=None):
         start_time = date.now()
         files = [(sdf, True, "file"),
                  (ref_charges, True, "file"),
@@ -167,13 +167,12 @@ class Parameterization:
             pass
             exit(colored("ERROR! There must be more then 1 molecules for parameterization!\n", "red"))
         num_of_molecules_validation = int((1-validation/100) * num_of_molecules)
-        set_of_molecules = SetOfMolecules(sdf, atomic_types_pattern, num_of_molecules_to=num_of_molecules_validation, )
-        print('End of program, exit in "parameterization.py" after molecule set creation.')
+        set_of_molecules = SetOfMolecules(sdf, atomic_types_pattern, ext_file, num_of_molecules_to=num_of_molecules_validation, )
         method = getattr(import_module("modules.methods"), method)()
         method.load_parameters(parameters, set_of_molecules, "parameterization", atomic_types_pattern=atomic_types_pattern)
         set_of_molecules.create_method_data(method)
         set_of_molecules.add_ref_charges(ref_charges, len(method.atomic_types))
-        set_of_molecules_validation = SetOfMolecules(sdf, atomic_types_pattern, num_of_molecules_from=num_of_molecules_validation, num_of_molecules_to=num_of_molecules)
+        set_of_molecules_validation = SetOfMolecules(sdf, atomic_types_pattern, ext_file, num_of_molecules_from=num_of_molecules_validation, num_of_molecules_to=num_of_molecules)
         try:
             set_of_molecules_validation.create_method_data(method)
         except ValueError:

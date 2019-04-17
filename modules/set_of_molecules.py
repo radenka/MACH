@@ -5,7 +5,7 @@ from termcolor import colored
 from collections import Counter
 from tabulate import tabulate
 from numpy import array, float32, int64, concatenate, random
-import os
+import os, sys
 from pathlib import Path
 
 
@@ -15,30 +15,20 @@ def sort(a, b):
     return a-1, b-1
 
 
-def get_attyc_atom_types(sdfile):
-    # get name of file, 'file' argument can be relative path of sdf file
-    # classifier is single word
-    sdfile = os.path.basename(sdfile)
-    current_dir = os.path.dirname(__file__)
-    external_atom_types_dir = 'ATTYC_outputs'
+def get_attyc_atom_types(ext_file, mol_from, mol_to):
+    # get name of file, 'file' argument can be relative path of sdf file\
+    if ext_file is None:
+        raise ValueError('You need to use --ext_file argument to use external atom type. Try again.')
+    if not os.path.isfile(ext_file):
+        raise FileNotFoundError('External file with atom types not found in given path:', ext_file)
 
     attyc_atom_types = []
-    atom_types_file = None
-    for file in os.listdir(os.path.join(current_dir, external_atom_types_dir)):
-        try:
-            # file_classifier can be used later if necessary
-            sdfname, file_classifier = file.split('SDF_')
-            # name of input sdfile must end with '.sdf'!
-            if sdfname == sdfile[:-4]:
-                atom_types_file = file
-        except ValueError:
-            continue
 
-    with open(os.path.join(current_dir, external_atom_types_dir, atom_types_file)) as f:
+    with open(ext_file) as f:
         for line in f.readlines():
             line = line.strip().split(',')
             attyc_atom_types.append(line)
-    return attyc_atom_types
+    return attyc_atom_types[mol_from:mol_to]
 
 
 class ArciSet:
@@ -57,7 +47,7 @@ class ArciSet:
 
 
 class SetOfMolecules(ArciSet):
-    def __init__(self, file, classifier, num_of_molecules_from=None, num_of_molecules_to=None):
+    def __init__(self, file, classifier, ext_file, num_of_molecules_from=None, num_of_molecules_to=None):
         print("Loading of set of molecules from {}...".format(file))
         super().__init__(file)
 
@@ -80,7 +70,7 @@ class SetOfMolecules(ArciSet):
 
         external_atom_types = [None] * num_of_all_molecules
         if classifier == 'external_atom_type':
-            external_atom_types = get_attyc_atom_types(file)
+            external_atom_types = get_attyc_atom_types(ext_file, num_of_molecules_from, num_of_molecules_to)
 
         for molecule_data, mol_atom_types in zip(molecules_data[self.num_of_molecules_from:self.num_of_molecules_to], external_atom_types):
             type_of_sdf_record = molecule_data[3][-5:]

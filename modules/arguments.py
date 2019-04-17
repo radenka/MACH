@@ -32,6 +32,7 @@ def load_arguments():
     parser.add_argument("--num_of_molecules", help="Only these number of molecules will be loaded.", type=int)
     parser.add_argument("-f", "--rewriting_with_force", action="store_true",
                         help="All existed files with the same names like your outputs will be replaced.")
+    parser.add_argument("--ext_file", help="Path to file where external atom types are stored.")
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 

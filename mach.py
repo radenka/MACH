@@ -55,6 +55,7 @@ if __name__ == '__main__':
                          args.cpu,
                          args.data_dir,
                          args.rewriting_with_force,
+                         args.ext_file,
                          args.git_hash)
 
     elif args.mode == "comparison":
