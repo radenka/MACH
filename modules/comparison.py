@@ -41,6 +41,7 @@ class Comparison:
     def __init__(self, ref_charges_data, charges_data, data_dir, rewriting_with_force, parameterization=False, validation=None):
         self.data_dir = data_dir
         self.parameterization = parameterization
+
         if self.parameterization:
             set_of_molecules_nt = namedtuple("set_of_molecules", ("all_charges", "atomic_types_charges", "molecules"))
             self.ref_set_of_molecules_validation = validation[0]
@@ -122,6 +123,7 @@ class Comparison:
                                                     x_axis_label="Reference charges",
                                                     y_axis_label="Empirical Charges",
                                                     output_backend="webgl")
+        legend_items_parametr = []
         correlation_graph_parameterization.title.align = "center"
         correlation_graph_parameterization.title.text_font_size = "17pt"
         correlation_graph_parameterization.xaxis.axis_label_text_font_size = "25px"
@@ -139,9 +141,12 @@ class Comparison:
 
             if isinstance(atomic_symbol, tuple):
                 atomic_symbol = atomic_symbol[0]
-            correlation_graph_parameterization.circle(ref_charges, charges, size=6, legend=atomic_symbol, fill_color=color, line_color=color)
-        correlation_graph_parameterization.legend.location = "top_left"
-        correlation_graph_parameterization.legend.click_policy = "hide"
+            dot = correlation_graph_parameterization.circle(ref_charges, charges, size=6, fill_color=color,
+                                                      line_color=color)  # legend=atomic_symbol,
+            legend_items_parametr.append((atomic_symbol, [dot]))
+        legend_par = Legend(items=legend_items_parametr, location='center', click_policy='hide')
+        correlation_graph_parameterization.add_layout(legend_par, 'right')
+
         max_charge = max((max(self.ref_set_of_molecules.ref_charges), max(self.set_of_molecules.all_charges)))
         min_charge = min((min(self.ref_set_of_molecules.ref_charges), min(self.set_of_molecules.all_charges)))
         corr = (max_charge - min_charge) / 10
@@ -166,6 +171,7 @@ class Comparison:
             correlation_graph_validation.line([-1000, 1000], [-1000, 1000])
             zipped_charges = list(zip(self.ref_set_of_molecules_validation.atomic_types_charges.items(),
                                       self.set_of_molecules_validation.atomic_types_charges.items()))
+            legend_items = []
             for index, ((atomic_symbol, ref_charges), (_, charges)) in enumerate(zipped_charges):
 
                 if isinstance(atomic_symbol, tuple):
@@ -175,11 +181,14 @@ class Comparison:
                     color = Category20[20][color_numbers[atomic_symbol]]
                 except KeyError:
                     color = Category20[20][index % 20]
-                correlation_graph_validation.circle(ref_charges, charges, size=6, legend=atomic_symbol, fill_color=color, line_color=color)
-            correlation_graph_validation.legend.location = "top_left"
-            correlation_graph_validation.legend.click_policy = "hide"
+                dot = correlation_graph_validation.circle(ref_charges, charges, size=6, fill_color=color,
+                                                          line_color=color)  # legend=atomic_symbol,
+                legend_items.append((atomic_symbol, [dot]))
+
+            legend = Legend(items=legend_items, location='center', click_policy='hide')
             correlation_graph_validation.x_range = Range1d(min_charge, max_charge)
             correlation_graph_validation.y_range = Range1d(min_charge, max_charge)
+            correlation_graph_validation.add_layout(legend, 'right')
 
             comparison = figure(plot_width=900,
                                 plot_height=900,
@@ -216,9 +225,11 @@ class Comparison:
         with open(output_file, "w") as html_file:
             html_file.write(open("modules/html_patterns/pattern_comparison.txt").read().format(
                 script, INLINE.render(),
-                "</td><td>\n".join([str(item) for item in self.all_atoms_data]),
-                "</td><td>\n".join([str(item) for item in self.molecules_data]),
-                "".join(["\n<tr style=\"background-color: {};\"><td>".format(background_color(atomic_type[1])) + "</td><td>".join([str(item) for item in atomic_type]) + "</td></tr>" for atomic_type in self.atomic_types_data]),
+            "</td><td>\n".join([str(item) for item in self.all_atoms_data]),
+            "</td><td>\n".join([str(item) for item in self.molecules_data]),
+            "".join(["\n<tr style=\"background-color: {};\"><td>".format(
+                background_color(atomic_type[1])) + "</td><td>".join([str(item) for item in atomic_type]) + "</td></tr>"
+                     for atomic_type in self.atomic_types_data]),
                 correlation_graph, charges_file, charges_file, ref_charges_file, ref_charges_file))
         print(colored("ok\n", "green"))
         view(output_file)
